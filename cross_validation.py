@@ -9,8 +9,6 @@ from train_model import *
 from utils import Averager, ensure_path
 from sklearn.model_selection import KFold
 import pickle
-from struct import unpack
-unpack
 ROOT = os.getcwd()
 
 """
