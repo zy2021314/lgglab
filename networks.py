@@ -290,10 +290,10 @@ class Aggregator():
 
 
 if __name__ == '__main__':
-    testx = torch.rand(64, 1, 34, 512);
+    testx = torch.rand(64, 1, 34, 7680);
     model = LGG(
             num_classes=2,
-            input_size=(1, 34, 512),
+            input_size=(1, 34, 7680),
             sampling_rate=int(128*1),
             num_T=64,
             out_graph=32,#hidden
@@ -303,8 +303,8 @@ if __name__ == '__main__':
             idx_graph=[2, 2, 2, 2, 4, 2, 2, 1, 1, 2, 2, 2, 2, 2, 2, 1, 1, 2]);
     testy = model(testx);
     print(model)
-    graph = make_dot(testy)
-    graph.render("model", view=False)
+    # graph = make_dot(testy)
+    # graph.render("model", view=False)
 
     # print(testx.shape)
     # print(testy.shape)

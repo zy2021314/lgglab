@@ -16,7 +16,7 @@ if __name__ == '__main__':
     parser.add_argument('--overlap', type=float, default=0)
     parser.add_argument('--sampling-rate', type=int, default=128)
     parser.add_argument('--scale-coefficient', type=float, default=1)
-    parser.add_argument('--input-shape', type=tuple, default=(1, 34, 512))
+    parser.add_argument('--input-shape', type=tuple, default=(1, 34, 7680))
     parser.add_argument('--data-format', type=str, default='eeg')
     ######## Training Process ########
     parser.add_argument('--random-seed', type=int, default=7)
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     sub_to_run = np.arange(args.subjects)#[0,1----]
 
     pd = PrepareData(args)
-    pd.run(sub_to_run, split=True, expand=True)
+    pd.run(sub_to_run, split=False, expand=True)
     cv = CrossValidation(args)
     seed_all(args.random_seed)
 
