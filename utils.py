@@ -8,8 +8,7 @@ from networks import *
 from eeg_dataset import *
 from torch.utils.data import DataLoader
 from sklearn.metrics import confusion_matrix, accuracy_score, f1_score
-
-
+from vitnetwork import ViT
 def set_gpu(x):
     torch.set_num_threads(1)
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -87,6 +86,23 @@ def get_model(args):
             pool=args.pool,
             pool_step_rate=args.pool_step_rate,
             idx_graph=idx_local_graph)
+    elif  args.model=='VIT':
+        #imagesize = args.image_size
+        idx_local_graph = list(np.array(h5py.File('num_chan_local_graph_{}.hdf'.format(args.graph_type), 'r')['data']))
+        channels = sum(idx_local_graph)
+        model = ViT(
+            num_classes=args.num_class,
+            image_size=(channels, args.input_shape[2]),  # image size is a tuple of (height, width)
+            patch_size=(channels, 16),  # patch size is a tuple of (height, width)
+            dim=1024,
+            depth=1,  # tansformer深度
+            heads=16,
+            mlp_dim=2048,
+            channels=1,
+            dropout=0.1,
+            emb_dropout=0.1
+        )
+
 
     return model
 

@@ -16,7 +16,7 @@ if __name__ == '__main__':
     parser.add_argument('--overlap', type=float, default=0)
     parser.add_argument('--sampling-rate', type=int, default=128)
     parser.add_argument('--scale-coefficient', type=float, default=1)
-    parser.add_argument('--input-shape', type=tuple, default=(1, 34, 7680))
+    parser.add_argument('--input-shape', type=tuple, default=(1, 32, 512))
     parser.add_argument('--data-format', type=str, default='eeg')
     ######## Training Process ########
     parser.add_argument('--random-seed', type=int, default=7)
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('--gpu', default='0')
     parser.add_argument('--save-model', type=bool, default=True)
     ######## Model Parameters ########
-    parser.add_argument('--model', type=str, default='LGG')
+    parser.add_argument('--model', type=str, default='VIT')
     parser.add_argument('--pool', type=int, default=16)
     parser.add_argument('--pool-step-rate', type=float, default=0.25)
     parser.add_argument('--T', type=int, default=64)
@@ -48,9 +48,19 @@ if __name__ == '__main__':
     parser.add_argument('--reproduce', type=bool, default=False)
     args = parser.parse_args()
     sub_to_run = np.arange(args.subjects)#[0,1----]
+    ########对于vit的参数 ######
+    # parser.add_argument('--image_size', type=tuple, default=(40, 512))
+    # parser.add_argument('--patch_size', type=tuple, default=(40,16))
+    # parser.add_argument('--dim', type=int, default=1024)
+    # parser.add_argument('--depth', type=int, default=2)
+    # parser.add_argument('--heads', type=int, default=16)
+    # parser.add_argument('--mlp_dim', type=int, default=2048)
+
+
+
 
     pd = PrepareData(args)
-    pd.run(sub_to_run, split=False, expand=True)
+    pd.run(sub_to_run, split=True, expand=True)
     cv = CrossValidation(args)
     seed_all(args.random_seed)
 

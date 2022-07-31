@@ -18,7 +18,7 @@ class PrepareData:
         self.label_type = args.label_type
         self.original_order = ['Fp1', 'AF3', 'F3', 'F7', 'FC5', 'FC1', 'C3', 'T7', 'CP5', 'CP1', 'P3', 'P7', 'PO3',
                                'O1', 'Oz', 'Pz', 'Fp2', 'AF4', 'Fz', 'F4', 'F8', 'FC6', 'FC2', 'Cz', 'C4', 'T8', 'CP6',
-                               'CP2', 'P4', 'P8', 'PO4', 'O2', 'eog1', 'eog2']
+                               'CP2', 'P4', 'P8', 'PO4', 'O2', 'eog1', 'eog2','q1','q2','q3','q4','q5','q6']
         self.graph_fro_DEAP = [['Fp1', 'AF3'], ['Fp2', 'AF4'], ['F3', 'F7'], ['F4', 'F8'],
                                ['Fz'],
                                ['FC5', 'FC1'], ['FC6', 'FC2'], ['C3', 'Cz', 'C4'], ['CP5', 'CP1', 'CP2', 'CP6'],
@@ -31,10 +31,10 @@ class PrepareData:
         self.graph_hem_DEAP = [['Fp1', 'AF3'], ['Fp2', 'AF4'], ['F3', 'F7'], ['F4', 'F8'],
                                ['Fz', 'Cz', 'Pz', 'Oz'],
                                ['FC5', 'FC1'], ['FC6', 'FC2'], ['C3'], ['C4'], ['CP5', 'CP1'], ['CP2', 'CP6'],
-                               ['P7', 'P3'], ['P4', 'P8'], ['PO3', 'O1'], ['PO4', 'O2'], ['T7'], ['T8'], ['eog1', 'eog2']]
+                               ['P7', 'P3'], ['P4', 'P8'], ['PO3', 'O1'], ['PO4', 'O2'], ['T7'], ['T8'], ['eog1','eog2','q1','q2','q3','q4','q5','q6']]
         #添加EXG信号
-        self.TS = ['Fp1', 'AF3', 'F3', 'F7', 'FC5', 'FC1', 'C3', 'T7', 'CP5', 'CP1', 'P3', 'P7', 'PO3','O1',
-                   'Fp2', 'AF4', 'F4', 'F8', 'FC6', 'FC2', 'C4', 'T8', 'CP6', 'CP2', 'P4', 'P8', 'PO4', 'O2']
+        self.TS = [['Fp1', 'AF3', 'F3', 'F7', 'FC5', 'FC1', 'C3', 'T7', 'CP5', 'CP1', 'P3', 'P7', 'PO3','O1'],
+                   ['Fp2', 'AF4', 'F4', 'F8', 'FC6', 'FC2', 'C4', 'T8', 'CP6', 'CP2', 'P4', 'P8', 'PO4', 'O2'], ['eog1','eog2','q1','q2','q3','q4','q5','q6']]
         self.graph_type = args.graph_type
 
     def run(self, subject_list, split=False, expand=True):
@@ -94,7 +94,7 @@ class PrepareData:
         label = subject['labels']
         #data = subject['data'][:, 0:32, 3 * 128:]  # Excluding the first 3s of baseline
         #添加自身其他信道的点
-        data = subject['data'][:, 0:34, 3 * 128:]
+        data = subject['data'][:, :, 3 * 128:]
         #EXG_data = subject['data'][:, 33:34, 3 * 128:]
         #   data: 40 x 32 x 7680
         #   label: 40 x 4
@@ -128,7 +128,7 @@ class PrepareData:
             graph_idx = self.TS
         #这一步的目的是将data变为相应的形状
         idx = []
-        if graph in ['BL', 'TS']:
+        if graph in ['BL']:
             for chan in graph_idx:
                 idx.append(self.original_order.index(chan))
         else:

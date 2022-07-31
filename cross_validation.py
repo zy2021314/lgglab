@@ -68,30 +68,30 @@ class CrossValidation:
         data_test = data[idx_test]
         label_test = label[idx_test]
 
-        # if self.args.dataset == 'Att' or self.args.dataset == 'DEAP':
-        #     """
-        #     For DEAP we want to do trial-wise 10-fold, so the idx_train/idx_test is for
-        #     trials.
-        #     data: (trial, segment, 1, chan, datapoint)
-        #     To use the normalization function, we should change the dimension from
-        #     (trial, segment, 1, chan, datapoint) to (trial*segments, 1, chan, datapoint)
-        #     我们希望进行10次试验，因此idx_train/idx_test用于训练
-        #     数据:(trial, segment, 1, chan, datpoint)
-        #     为了使用归一化函数，我们应该改变维数
-        #     (trial, segment, 1, chan, datapopoint)到(trial*segments, 1, chan, datapopoint)
-        #     """
-        #
-        #     #（40,15）-》（40*15）
-        #     data_train = np.concatenate(data_train, axis=0)
-        #     label_train = np.concatenate(label_train, axis=0)
-        #     if len(data_test.shape) > 4:
-        #         """
-        #         When leave one trial out is conducted, the test data will be (segments, 1, chan, datapoint), hence,
-        #         no need to concatenate the first dimension to get trial*segments
-        #         当进行一次试验时，测试数据为(segments, 1, chan, datpoint)，因此，不需要连接第一个维度来获得试验*段
-        #         """
-        #         data_test = np.concatenate(data_test, axis=0)
-        #         label_test = np.concatenate(label_test, axis=0)
+        if self.args.dataset == 'Att' or self.args.dataset == 'DEAP':
+            """
+            For DEAP we want to do trial-wise 10-fold, so the idx_train/idx_test is for
+            trials.
+            data: (trial, segment, 1, chan, datapoint)
+            To use the normalization function, we should change the dimension from
+            (trial, segment, 1, chan, datapoint) to (trial*segments, 1, chan, datapoint)
+            我们希望进行10次试验，因此idx_train/idx_test用于训练
+            数据:(trial, segment, 1, chan, datpoint)
+            为了使用归一化函数，我们应该改变维数
+            (trial, segment, 1, chan, datapopoint)到(trial*segments, 1, chan, datapopoint)
+            """
+
+            #（40,15）-》（40*15）
+            data_train = np.concatenate(data_train, axis=0)
+            label_train = np.concatenate(label_train, axis=0)
+            if len(data_test.shape) > 4:
+                """
+                When leave one trial out is conducted, the test data will be (segments, 1, chan, datapoint), hence,
+                no need to concatenate the first dimension to get trial*segments
+                当进行一次试验时，测试数据为(segments, 1, chan, datpoint)，因此，不需要连接第一个维度来获得试验*段
+                """
+                data_test = np.concatenate(data_test, axis=0)
+                label_test = np.concatenate(label_test, axis=0)
 
         data_train, data_test = self.normalize(train=data_train, test=data_test)
         # Prepare the data format for training the model using PyTorch
