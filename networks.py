@@ -3,8 +3,6 @@ import torch
 import math
 import torch.nn as nn
 import torch.nn.functional as F
-from layers import GraphConvolution
-from torchviz import make_dot
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 

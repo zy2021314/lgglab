@@ -9,6 +9,8 @@ from train_model import *
 from utils import Averager, ensure_path
 from sklearn.model_selection import KFold
 import pickle
+from sklearn.model_selection import train_test_split
+
 ROOT = os.getcwd()
 
 """
@@ -68,7 +70,7 @@ class CrossValidation:
         data_test = data[idx_test]
         label_test = label[idx_test]
 
-        if self.args.dataset == 'Att' or self.args.dataset == 'DEAP':
+        if self.args.dataset == 'LAB' or self.args.dataset == 'DEAP':
             """
             For DEAP we want to do trial-wise 10-fold, so the idx_train/idx_test is for
             trials.
@@ -92,6 +94,23 @@ class CrossValidation:
                 """
                 data_test = np.concatenate(data_test, axis=0)
                 label_test = np.concatenate(label_test, axis=0)
+
+        data_train, data_test = self.normalize(train=data_train, test=data_test)
+        # Prepare the data format for training the model using PyTorch
+        data_train = torch.from_numpy(data_train).float()
+        label_train = torch.from_numpy(label_train).long()
+
+        data_test = torch.from_numpy(data_test).float()
+        label_test = torch.from_numpy(label_test).long()
+        return data_train, label_train, data_test, label_test
+
+    def hci_prepare_data(self, idx_train, idx_test, data, label):
+
+        # 只拿其中设置的数据进行划分
+        data_train = data[idx_train]
+        label_train = label[idx_train]
+        data_test = data[idx_test]
+        label_test = label[idx_test]
 
         data_train, data_test = self.normalize(train=data_train, test=data_test)
         # Prepare the data format for training the model using PyTorch
@@ -192,8 +211,13 @@ class CrossValidation:
             for idx_fold, (idx_train, idx_test) in enumerate(kf.split(data)):
                 print('Outer loop: {}-fold-CV Fold:{}'.format(fold, idx_fold))
                 #准备数据,一个人是（40,15,1,34，512），train：540，test：60.labels：（60,1）
-                data_train, label_train, data_test, label_test = self.prepare_data(
-                    idx_train=idx_train, idx_test=idx_test, data=data, label=label)
+                if self.args.dataset == 'DEAP' or 'LAB':
+                    data_train, label_train, data_test, label_test = self.prepare_data(
+                        idx_train=idx_train, idx_test=idx_test, data=data, label=label)
+                elif self.args.dataset == 'HCI':
+                    data_train, label_train, data_test, label_test = self.hci_prepare_data(
+                        idx_train=idx_train, idx_test=idx_test, data=data, label=label)
+
 
                 if self.args.reproduce:
                     # to reproduce the reported ACC来重现报告的ACC
@@ -311,4 +335,177 @@ class CrossValidation:
         file = open(self.text_file, 'a')
         file.write(str(content) + '\n')
         file.close()
+
+    def indepent_train(self,subject=[0]):
+
+        data = []
+        label = []
+        for sub in subject:
+            data_one, label_one = self.load_per_subject(sub)
+            data.append(data_one)
+            label.append(label_one)
+        #（32,40,15，1,40,512）
+        #
+        data = np.array(data)
+        label = np.array(label)
+        # Train and evaluate the model subject by subject
+        tta = []  # total test accuracy
+        tva = []  # total validation accuracy
+        ttf = []  # total test f1
+        tvf = []  # total validation f1
+        va_val = Averager()
+        vf_val = Averager()
+        preds, acts = [], []
+        # 创建一个kf变量
+
+        # split(X, y=None, groups=None)：将数据集划分成训练集和测试集，返回索引生成器
+        data_train, data_test, label_train, label_test = train_test_split(data, label, test_size=0.2, shuffle=True,
+                                                                          random_state=10)
+
+        if self.args.dataset == 'Att' or self.args.dataset == 'DEAP':
+            """
+            For DEAP we want to do trial-wise 10-fold, so the idx_train/idx_test is for
+            trials.
+            data: (trial, segment, 1, chan, datapoint)
+            To use the normalization function, we should change the dimension from
+            (trial, segment, 1, chan, datapoint) to (trial*segments, 1, chan, datapoint)
+            我们希望进行10次试验，因此idx_train/idx_test用于训练
+            数据:(trial, segment, 1, chan, datpoint)
+            为了使用归一化函数，我们应该改变维数
+            (trial, segment, 1, chan, datapopoint)到(trial*segments, 1, chan, datapopoint)
+            """
+
+            # （40,15）-》（40*15）
+            data_train = np.concatenate(data_train, axis=0)
+            label_train = np.concatenate(label_train, axis=0)
+            if len(data_test.shape) > 4:
+                """
+                When leave one trial out is conducted, the test data will be (segments, 1, chan, datapoint), hence,
+                no need to concatenate the first dimension to get trial*segments
+                当进行一次试验时，测试数据为(segments, 1, chan, datpoint)，因此，不需要连接第一个维度来获得试验*段
+                """
+                data_test = np.concatenate(data_test, axis=0)
+                label_test = np.concatenate(label_test, axis=0)
+        data_train, data_test = self.normalize(train=data_train, test=data_test)
+        # Prepare the data format for training the model using PyTorch
+        data_train = torch.from_numpy(data_train).float()
+        label_train = torch.from_numpy(label_train).long()
+
+        data_test = torch.from_numpy(data_test).float()
+        label_test = torch.from_numpy(label_test).long()
+
+
+
+    def norm_train(self, subject=[0]):
+        """
+        this function achieves n-fold cross-validation
+        该函数实现了n次交叉验证
+        :param subject: how many subject to load
+        :param fold: how many fold
+        """
+        # Train and evaluate the model subject by subject
+        tta = []  # total test accuracy
+        tva = []  # total validation accuracy
+        ttf = []  # total test f1
+        tvf = []  # total validation f1
+
+        for sub in subject:
+            #读取，hdf文件
+            data, label = self.load_per_subject(sub)
+
+            va_val = Averager()
+            vf_val = Averager()
+            preds, acts = [], []
+            #创建一个kf变量
+
+            #split(X, y=None, groups=None)：将数据集划分成训练集和测试集，返回索引生成器
+            data_train, data_test, label_train,  label_test = train_test_split(data, label, test_size=0.2, shuffle=True, random_state=10)
+
+            if self.args.dataset == 'Att' or self.args.dataset == 'DEAP':
+                """
+                For DEAP we want to do trial-wise 10-fold, so the idx_train/idx_test is for
+                trials.
+                data: (trial, segment, 1, chan, datapoint)
+                To use the normalization function, we should change the dimension from
+                (trial, segment, 1, chan, datapoint) to (trial*segments, 1, chan, datapoint)
+                我们希望进行10次试验，因此idx_train/idx_test用于训练
+                数据:(trial, segment, 1, chan, datpoint)
+                为了使用归一化函数，我们应该改变维数
+                (trial, segment, 1, chan, datapopoint)到(trial*segments, 1, chan, datapopoint)
+                """
+
+                # （40,15）-》（40*15）
+                data_train = np.concatenate(data_train, axis=0)
+                label_train = np.concatenate(label_train, axis=0)
+                if len(data_test.shape) > 4:
+                    """
+                    When leave one trial out is conducted, the test data will be (segments, 1, chan, datapoint), hence,
+                    no need to concatenate the first dimension to get trial*segments
+                    当进行一次试验时，测试数据为(segments, 1, chan, datpoint)，因此，不需要连接第一个维度来获得试验*段
+                    """
+                    data_test = np.concatenate(data_test, axis=0)
+                    label_test = np.concatenate(label_test, axis=0)
+            data_train, data_test = self.normalize(train=data_train, test=data_test)
+            # Prepare the data format for training the model using PyTorch
+            data_train = torch.from_numpy(data_train).float()
+            label_train = torch.from_numpy(label_train).long()
+
+            data_test = torch.from_numpy(data_test).float()
+            label_test = torch.from_numpy(label_test).long()
+
+            if self.args.reproduce:
+                # to reproduce the reported ACC来重现报告的ACC
+                acc_test, pred, act = test(args=self.args, data=data_test, label=label_test,
+                                           reproduce=self.args.reproduce,
+                                           subject=sub, fold=F)
+                acc_val = 0
+                f1_val = 0
+            else:
+                # to train new models
+                acc_val, f1_val = self.first_stage(data=data_train, label=label_train,
+                                                  subject=sub, fold="F")
+
+                combine_train(args=self.args,
+                              data=data_train, label=label_train,
+                              subject=sub, fold="F", target_acc=1)
+
+                acc_test, pred, act = test(args=self.args, data=data_test, label=label_test,
+                                           reproduce=self.args.reproduce,
+                                           subject=sub, fold="F")
+                va_val.add(acc_val)
+                vf_val.add(f1_val)
+                preds.extend(pred)
+                acts.extend(act)
+
+            tva.append(va_val.item())
+            tvf.append(vf_val.item())
+            acc, f1, _ = get_metrics(y_pred=preds, y_true=acts)
+            tta.append(acc)
+            ttf.append(f1)
+            result = '{},{}'.format(tta[-1], f1)
+            self.log2txt(result)
+
+
+
+        # prepare final report
+        tta = np.array(tta)
+        ttf = np.array(ttf)
+        tva = np.array(tva)
+        tvf = np.array(tvf)
+        mACC = np.mean(tta)
+        mF1 = np.mean(ttf)
+        std = np.std(tta)
+        mACC_val = np.mean(tva)
+        std_val = np.std(tva)
+        mF1_val = np.mean(tvf)
+
+        print('Final: test mean ACC:{} std:{}'.format(mACC, std))
+        print('Final: val mean ACC:{} std:{}'.format(mACC_val, std_val))
+        print('Final: val mean F1:{}'.format(mF1_val))
+        results = 'test mAcc={} mF1={} val mAcc={} val F1={}'.format(mACC,
+        mF1, mACC_val, mF1_val)
+        self.log2txt(results)
+
+
+
 

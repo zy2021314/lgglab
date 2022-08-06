@@ -1,7 +1,13 @@
 # This is the processing script of DEAP dataset
 
 import _pickle as cPickle
-
+import xml.dom.minidom
+from xml.dom import Node
+import numpy as np
+import pandas as pd
+from pyedflib import highlevel
+import re
+import os
 from train_model import *
 from scipy import signal
 
@@ -16,25 +22,58 @@ class PrepareData:
         self.model = None
         self.data_path = args.data_path
         self.label_type = args.label_type
-        self.original_order = ['Fp1', 'AF3', 'F3', 'F7', 'FC5', 'FC1', 'C3', 'T7', 'CP5', 'CP1', 'P3', 'P7', 'PO3',
-                               'O1', 'Oz', 'Pz', 'Fp2', 'AF4', 'Fz', 'F4', 'F8', 'FC6', 'FC2', 'Cz', 'C4', 'T8', 'CP6',
-                               'CP2', 'P4', 'P8', 'PO4', 'O2', 'eog1', 'eog2','q1','q2','q3','q4','q5','q6']
-        self.graph_fro_DEAP = [['Fp1', 'AF3'], ['Fp2', 'AF4'], ['F3', 'F7'], ['F4', 'F8'],
-                               ['Fz'],
-                               ['FC5', 'FC1'], ['FC6', 'FC2'], ['C3', 'Cz', 'C4'], ['CP5', 'CP1', 'CP2', 'CP6'],
-                               ['P7', 'P3', 'Pz', 'P4', 'P8'], ['PO3', 'PO4'], ['O1', 'Oz', 'O2'],
-                               ['T7'], ['T8'], ['eog1', 'eog2']]#添加EOG信号眼电信号
-        self.graph_gen_DEAP = [['Fp1', 'Fp2'], ['AF3', 'AF4'], ['F3', 'F7', 'Fz', 'F4', 'F8'],
-                               ['FC5', 'FC1', 'FC6', 'FC2'], ['C3', 'Cz', 'C4'], ['CP5', 'CP1', 'CP2', 'CP6'],
-                               ['P7', 'P3', 'Pz', 'P4', 'P8'], ['PO3', 'PO4'], ['O1', 'Oz', 'O2'],
-                               ['T7'], ['T8']]
-        self.graph_hem_DEAP = [['Fp1', 'AF3'], ['Fp2', 'AF4'], ['F3', 'F7'], ['F4', 'F8'],
-                               ['Fz', 'Cz', 'Pz', 'Oz'],
-                               ['FC5', 'FC1'], ['FC6', 'FC2'], ['C3'], ['C4'], ['CP5', 'CP1'], ['CP2', 'CP6'],
-                               ['P7', 'P3'], ['P4', 'P8'], ['PO3', 'O1'], ['PO4', 'O2'], ['T7'], ['T8'], ['eog1','eog2','q1','q2','q3','q4','q5','q6']]
-        #添加EXG信号
-        self.TS = [['Fp1', 'AF3', 'F3', 'F7', 'FC5', 'FC1', 'C3', 'T7', 'CP5', 'CP1', 'P3', 'P7', 'PO3','O1'],
-                   ['Fp2', 'AF4', 'F4', 'F8', 'FC6', 'FC2', 'C4', 'T8', 'CP6', 'CP2', 'P4', 'P8', 'PO4', 'O2'], ['eog1','eog2','q1','q2','q3','q4','q5','q6']]
+        if self.args.dataset =='DEAP':
+            self.original_order = ['Fp1', 'AF3', 'F3', 'F7', 'FC5', 'FC1', 'C3', 'T7', 'CP5', 'CP1', 'P3', 'P7', 'PO3',
+                                   'O1', 'Oz', 'Pz', 'Fp2', 'AF4', 'Fz', 'F4', 'F8', 'FC6', 'FC2', 'Cz', 'C4', 'T8', 'CP6',
+                                   'CP2', 'P4', 'P8', 'PO4', 'O2', 'eog1', 'eog2','q1','q2','q3','q4','q5','q6']
+            self.graph_fro_DEAP = [['Fp1', 'AF3'], ['Fp2', 'AF4'], ['F3', 'F7'], ['F4', 'F8'],
+                                   ['Fz'],
+                                   ['FC5', 'FC1'], ['FC6', 'FC2'], ['C3', 'Cz', 'C4'], ['CP5', 'CP1', 'CP2', 'CP6'],
+                                   ['P7', 'P3', 'Pz', 'P4', 'P8'], ['PO3', 'PO4'], ['O1', 'Oz', 'O2'],
+                                   ['T7'], ['T8'], ['eog1', 'eog2']]#添加EOG信号眼电信号
+            self.graph_gen_DEAP = [['Fp1', 'Fp2'], ['AF3', 'AF4'], ['F3', 'F7', 'Fz', 'F4', 'F8'],
+                                   ['FC5', 'FC1', 'FC6', 'FC2'], ['C3', 'Cz', 'C4'], ['CP5', 'CP1', 'CP2', 'CP6'],
+                                   ['P7', 'P3', 'Pz', 'P4', 'P8'], ['PO3', 'PO4'], ['O1', 'Oz', 'O2'],
+                                   ['T7'], ['T8'], ['eog1','eog2','q1','q2','q3','q4','q5','q6']]
+            self.graph_hem_DEAP = [['Fp1', 'AF3'], ['Fp2', 'AF4'], ['F3', 'F7'], ['F4', 'F8'],
+                                   ['Fz', 'Cz', 'Pz', 'Oz'],
+                                   ['FC5', 'FC1'], ['FC6', 'FC2'], ['C3'], ['C4'], ['CP5', 'CP1'], ['CP2', 'CP6'],
+                                   ['P7', 'P3'], ['P4', 'P8'], ['PO3', 'O1'], ['PO4', 'O2'], ['T7'], ['T8']]
+            #添加EXG信号
+            self.TS = [['Fp1', 'AF3', 'F3', 'F7', 'FC5', 'FC1', 'C3', 'T7', 'CP5', 'CP1', 'P3', 'P7', 'PO3','O1'],
+                       ['Fp2', 'AF4', 'F4', 'F8', 'FC6', 'FC2', 'C4', 'T8', 'CP6', 'CP2', 'P4', 'P8', 'PO4', 'O2'],
+                       ['eog1','eog2','q1','q2','q3','q4','q5','q6']]
+
+
+        elif self.args.dataset == 'HCI':
+            self.original_order = ['Fp1', 'AF3', 'F3', 'F7', 'FC5', 'FC1', 'C3', 'T7', 'CP5', 'CP1', 'P3', 'P7', 'PO3',
+                                   'O1', 'Oz', 'Pz', 'Fp2', 'AF4', 'Fz', 'F4', 'F8', 'FC6', 'FC2', 'Cz', 'C4', 'T8', 'CP6',
+                                   'CP2', 'P4', 'P8', 'PO4', 'O2', 'EXG1', 'EXG2', 'EXG3','EXG4','EXG5','EXG6','EXG7','EXG8',
+                                   'GSR1', 'GSR2', 'ERG1', 'ERG2', 'RESP', 'TEMP', 'STATUS']
+            #添加EXG信号
+            #不变channel and 多模态
+            self.TS = [['Fp1', 'AF3', 'F3', 'F7', 'FC5', 'FC1', 'C3', 'T7', 'CP5', 'CP1', 'P3', 'P7', 'PO3','O1', 'Oz', 'Pz'],
+                       ['Fp2', 'AF4', 'Fz', 'F4', 'F8', 'FC6', 'FC2', 'Cz', 'C4', 'T8', 'CP6','CP2', 'P4', 'P8', 'PO4', 'O2'],
+                       ['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8', 'GSR1', 'GSR2', 'ERG1', 'ERG2', 'RESP', 'TEMP', 'STATUS']]
+            #变channel and 多模态
+            self.graph_hem_DEAP = [['Fp1', 'AF3'], ['Fp2', 'AF4'], ['F3', 'F7'], ['F4', 'F8'],
+                                   ['Fz', 'Cz', 'Pz', 'Oz'],
+                                   ['FC5', 'FC1'], ['FC6', 'FC2'], ['C3'], ['C4'], ['CP5', 'CP1'], ['CP2', 'CP6'],
+                                   ['P7', 'P3'], ['P4', 'P8'], ['PO3', 'O1'], ['PO4', 'O2'], ['T7'], ['T8'],
+                                    ['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8', 'GSR1', 'GSR2', 'ERG1', 'ERG2', 'RESP', 'TEMP', 'STATUS']]
+            # 变channel and no多模态
+            self.graph_hem_DEAP2 = [['Fp1', 'AF3'], ['Fp2', 'AF4'], ['F3', 'F7'], ['F4', 'F8'],
+                                   ['Fz', 'Cz', 'Pz', 'Oz'],
+                                   ['FC5', 'FC1'], ['FC6', 'FC2'], ['C3'], ['C4'], ['CP5', 'CP1'], ['CP2', 'CP6'],
+                                   ['P7', 'P3'], ['P4', 'P8'], ['PO3', 'O1'], ['PO4', 'O2'], ['T7'], ['T8'],
+                                    ['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8', 'GSR1', 'GSR2', 'ERG1', 'ERG2', 'RESP', 'TEMP', 'STATUS']]
+            #不变channel and no多模态
+            self.TS2 = [
+                ['Fp1', 'AF3', 'F3', 'F7', 'FC5', 'FC1', 'C3', 'T7', 'CP5', 'CP1', 'P3', 'P7', 'PO3', 'O1', 'Oz', 'Pz'],
+                ['Fp2', 'AF4', 'Fz', 'F4', 'F8', 'FC6', 'FC2', 'Cz', 'C4', 'T8', 'CP6', 'CP2', 'P4', 'P8', 'PO4', 'O2']]
+
+        # 添加，其他的数据集
+
         self.graph_type = args.graph_type
 
     def run(self, subject_list, split=False, expand=True):
@@ -49,26 +88,120 @@ class PrepareData:
         -------
         The processed data will be saved './data_<data_format>_<dataset>_<label_type>/sub0.hdf'
         """
-        for sub in subject_list:
-            data_, label_ = self.load_data_per_subject(sub)
-            # select label type here
-            label_ = self.label_selection(label_)
+        if self.args.dataset == 'DEAP':
+            for sub in subject_list:
+                data_, label_ = self.load_data_per_subject(sub)
+                # select label type here
+                label_ = self.label_selection(label_)
 
-            if expand:
-                # expand one dimension for deep learning(CNNs)
-                #（40,32,7680）-》》（40,1,32,7680）
-                data_ = np.expand_dims(data_, axis=-3)
+                if expand:
+                    # expand one dimension for deep learning(CNNs)
+                    #（40,32,7680）-》》（40,1,32,7680）
+                    data_ = np.expand_dims(data_, axis=-3)
 
-            if split:
-                data_, label_ = self.split(
-                    data=data_, label=label_,
+                if split:
+                    data_, label_ = self.split(
+                                        data=data_,
+                                        label=label_,
+                                        segment_length=self.args.segment,
+                                        overlap=self.args.overlap, sampling_rate=self.args.sampling_rate
+                                            )
+
+                print('Data and label prepared!')
+                print('data:' + str(data_.shape) + ' label:' + str(label_.shape))
+                print('----------------------')
+                self.save(data_, label_, sub)
+        elif self.args.dataset == 'HCI':
+            #因为hci数据中 id 从1开始
+            base_path  = self.args.data_path
+            folder_name = os.listdir(base_path)
+            session_path = os.path.join(base_path, folder_name[1], 'session.xml')
+            for sub in subject_list:
+                #对于每一个受试者需要将其分片后存入数据中
+                data_ = []
+                label_ = []
+                for fold in folder_name:
+                    #print(fold)
+                    folder_path = os.path.join(base_path, fold)
+                    file_name = os.listdir(folder_path)
+                    session_path = os.path.join(folder_path, 'session.xml')
+                    dom = xml.dom.minidom.parse(session_path)
+                    root = dom.documentElement
+                    for i in file_name:
+                        if os.path.splitext(i)[1] == ".bdf":
+                            #print(float(root.getAttribute('feltVlnc')))
+                            label_one_movie = int(float(root.getAttribute('feltVlnc')))
+                            if int(root.getElementsByTagName('subject')[0].getAttribute('id')) == sub:
+                                #确定了文件为这个受试者的数据,不知道为什么在if里面root就有问题了
+                                #标签二分类
+                                print(fold)
+                                if self.args.num_class == 2:
+                                    label_one_movie = np.where(label_one_movie <= 5, 0, label_one_movie)
+                                    label_one_movie = np.where(label_one_movie > 5, 1, label_one_movie)
+                                #print(label_one_movie)
+                                #读取数据
+                                for i in file_name:
+                                    if os.path.splitext(i)[1] == ".bdf":
+                                        eeg_file_path = os.path.join(folder_path, i)
+                                        data_one_movie, _, _ = highlevel.read_edf(eeg_file_path)
+                                #得到其中一个的数据后，将其扩充维度，分片并且标准化，最后在最高维度合并后存入hdf文件
+                                if expand:
+                                    data_one_movie = np.expand_dims(data_one_movie, axis=-3)
+                                data_one_movie, label_one_movie = self.hci_split(
+                                    data=data_one_movie,
+                                    label=label_one_movie,
+                                    segment_length=self.args.segment,
+                                    overlap=self.args.overlap, sampling_rate=self.args.sampling_rate
+                                )
+                                data_.append(data_one_movie)
+                                label_.append(label_one_movie)
+
+
+                data_ = np.concatenate(data_, axis=0)
+                label_ = np.concatenate(label_, axis=0)
+                data_ = self.hci_reorder_channel(data=data_, graph=self.graph_type)
+                print("The one people Data shape:" + str(data_.shape) + " Label:" + str(
+                    label_.shape))
+                self.save(data_, label_, sub)
+
+        elif self.args.dataset == 'LAB':
+            #base_path = self.args.data_path
+            folder_name = os.listdir('dataset_man')
+            folder_len = len(os.listdir('dataset_man'))
+
+            for sub in subject_list:
+                label = []
+                data = []
+                for i in folder_name:
+                    if int(re.sub("\D", "", i)) == sub:
+                        label_name = re.search('[^/_]+$', i).group()
+                        file_name = os.listdir(f'dataset_man/{i}')
+                        file_len = len(os.listdir(f'dataset_man/{i}'))
+                        # print(label_name)
+                        if label_name == 'like':
+                            label.append(np.ones(file_len))
+                        else:
+                            label.append(np.zeros(file_len))
+                        for j in file_name:
+                            temp = pd.read_csv(f"dataset_man/{i}/{j}", index_col=0)
+                            data.append(temp)
+
+                data = np.array(data)
+                data = data[:, :, :256]
+                label = [j for i in label for j in i]
+                label = [int(i) for i in label]
+                label = np.array(label)
+                if expand:
+                    data = np.expand_dims(data, axis=-3)
+                data, label = self.split(
+                    data=data,
+                    label=label,
                     segment_length=self.args.segment,
-                    overlap=self.args.overlap, sampling_rate=self.args.sampling_rate)
+                    overlap=self.args.overlap, sampling_rate=self.args.sampling_rate
+                )
+                self.save(data, label, sub)
 
-            print('Data and label prepared!')
-            print('data:' + str(data_.shape) + ' label:' + str(label_.shape))
-            print('----------------------')
-            self.save(data_, label_, sub)
+
 
     def load_data_per_subject(self, sub):
         """
@@ -103,6 +236,11 @@ class PrepareData:
         print('data:' + str(data.shape) + ' label:' + str(label.shape))
         return data, label
 
+    def load_hci_data_per_subject(self, sub):
+        """
+
+        """
+
     def reorder_channel(self, data, graph):
         """
         This function reorder the channel according to different graph designs
@@ -133,16 +271,57 @@ class PrepareData:
                 idx.append(self.original_order.index(chan))
         else:
             num_chan_local_graph = []
-            for i in range(len(graph_idx)):
-                num_chan_local_graph.append(len(graph_idx[i]))
-                for chan in graph_idx[i]:
+            for i in range(len(graph_idx)):#grath-idx=[['eog1','eog2','q1','q2','q3','q4','q5','q6']]
+                num_chan_local_graph.append(len(graph_idx[i]))#将每一个小元组的个数输入ex：【1,2,2,2,】
+                for chan in graph_idx[i]:#对每个元素取其中索引加入索引列表，例如像上面的元素，取值就取，32----40
+                    idx.append(self.original_order.index(chan))
+
+        # save the number of channels in local graph for building the LGG model in utils.py
+        dataset = h5py.File('num_chan_local_graph_{}.hdf'.format(graph), 'w')
+        dataset['data'] = num_chan_local_graph
+        dataset.close()
+        return data[:, idx, :]
+
+    def hci_reorder_channel(self, data, graph):
+        """
+        This function reorder the channel according to different graph designs
+        该功能根据不同的图形设计对通道进行重新排序
+        Parameters
+        ----------
+        data: (trial, channel, data)
+        graph: graph type
+
+        Returns
+        -------
+        reordered data: (trial, channel, data)
+        """
+        if graph == 'fro':
+            graph_idx = self.graph_fro_DEAP
+        elif graph == 'gen':
+            graph_idx = self.graph_gen_DEAP
+        elif graph == 'hem':
+            graph_idx = self.graph_hem_DEAP
+        elif graph == 'BL':
+            graph_idx = self.original_order
+        elif graph == 'TS':
+            graph_idx = self.TS
+        #这一步的目的是将data变为相应的形状
+        idx = []
+        if graph in ['BL']:
+            for chan in graph_idx:
+                idx.append(self.original_order.index(chan))
+        else:
+            num_chan_local_graph = []
+            for i in range(len(graph_idx)):#grath-idx=[['eog1','eog2','q1','q2','q3','q4','q5','q6']]
+                num_chan_local_graph.append(len(graph_idx[i]))#将每一个小元组的个数输入ex：【1,2,2,2,】
+                for chan in graph_idx[i]:#对每个元素取其中索引加入索引列表，例如像上面的元素，取值就取，32----40
                     idx.append(self.original_order.index(chan))
 
             # save the number of channels in local graph for building the LGG model in utils.py
             dataset = h5py.File('num_chan_local_graph_{}.hdf'.format(graph), 'w')
             dataset['data'] = num_chan_local_graph
             dataset.close()
-        return data[:, idx, :]
+        return data[:, :, idx, :]
 
     def label_selection(self, label):
         """
@@ -201,7 +380,7 @@ class PrepareData:
         """
         This function split one trial's data into shorter segments片段
         该函数将一次试验的数据分成更短的段片段
-        分割为15断，每段3秒
+        分割为15断，每段4秒
         Parameters
         ----------
         data: (trial, f, channel, data)
@@ -225,7 +404,46 @@ class PrepareData:
             data_split.append(data[:, :, :, (i * step):(i * step + data_segment)])
 
         data_split_array = np.stack(data_split, axis=1)
+        #label=（40，） ---》（40，片段数
         label = np.stack([np.repeat(label[i], int(number_segment + 1)) for i in range(len(label))], axis=0)
+        print("The data and label are split: Data shape:" + str(data_split_array.shape) + " Label:" + str(
+            label.shape))
+        data = data_split_array
+        assert len(data) == len(label)
+        return data, label
+
+    def hci_split(self, data, label, segment_length=1, overlap=0, sampling_rate=256):
+        """
+        This function split one trial's data into shorter segments片段
+        该函数将一次试验的数据分成更短的段片段
+        分割为15断，每段4秒
+        Parameters
+        ----------
+        data: (trial, f, channel, data)
+        label: (trial,)
+        segment_length: how long each segment is (e.g. 1s, 2s,...)
+        overlap: overlap rate
+        sampling_rate: sampling rate
+
+        Returns
+        -------
+        data:(tiral, num_segment, f, channel, segment_legnth)
+        label:(trial, num_segment,)
+        """
+        data_shape = data.shape
+        #每一步的步长为时间长度*采样率*重叠率
+        step = int(segment_length * sampling_rate * (1 - overlap))
+        #每一个片段长度
+        data_segment = sampling_rate * segment_length
+        data_split = []
+        #片段个数为
+        number_segment = int((data_shape[-1] - data_segment) // step)
+        for i in range(number_segment + 1):
+            data_split.append(data[:, :, (i * step):(i * step + data_segment)])
+
+        data_split_array = np.stack(data_split, axis=0)
+        label = np.repeat(label, int(number_segment + 1))
+        #label = np.stack(np.repeat(label[i], int(number_segment + 1)), axis=0)
         print("The data and label are split: Data shape:" + str(data_split_array.shape) + " Label:" + str(
             label.shape))
         data = data_split_array

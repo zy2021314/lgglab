@@ -166,7 +166,6 @@ def test(args, data, label, reproduce, subject, fold):
 
 
 def combine_train(args, data, label, subject, fold, target_acc):
-    #要搞懂这个联合训练什么名堂
     save_name = '_sub' + str(subject) + '_fold' + str(fold)
     set_up(args)
     seed_all(args.random_seed)
