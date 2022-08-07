@@ -62,10 +62,10 @@ if __name__ == '__main__':
     parser.add_argument('--T', type=int, default=64)
     #图的类型，根据original_order的索引，来选择channel及其所处位置，可在preparedata里修改与添加
     parser.add_argument('--graph-type', type=str, default='TS', choices=['fro', 'gen', 'hem', 'BL', 'TS', 'TS2', 'hem2'])
+    ##########################################
     parser.add_argument('--hidden', type=int, default=32)
-
     ########对于vit的参数 ######
-    parser.add_argument('--depth', type=int, default=1)#transform模块数量
+    parser.add_argument('--depth', type=int, default=6)#transform模块数量
     ######## Reproduce the result using the saved model ######
     parser.add_argument('--reproduce', type=bool, default=False)
     args = parser.parse_args()
