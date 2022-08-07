@@ -23,6 +23,7 @@ class PrepareData:
         self.data_path = args.data_path
         self.label_type = args.label_type
         if self.args.dataset =='DEAP':
+            #可以自己按照索引确定需要的信道和个数
             self.original_order = ['Fp1', 'AF3', 'F3', 'F7', 'FC5', 'FC1', 'C3', 'T7', 'CP5', 'CP1', 'P3', 'P7', 'PO3',
                                    'O1', 'Oz', 'Pz', 'Fp2', 'AF4', 'Fz', 'F4', 'F8', 'FC6', 'FC2', 'Cz', 'C4', 'T8', 'CP6',
                                    'CP2', 'P4', 'P8', 'PO4', 'O2', 'eog1', 'eog2','q1','q2','q3','q4','q5','q6']
@@ -276,10 +277,10 @@ class PrepareData:
                 for chan in graph_idx[i]:#对每个元素取其中索引加入索引列表，例如像上面的元素，取值就取，32----40
                     idx.append(self.original_order.index(chan))
 
-        # save the number of channels in local graph for building the LGG model in utils.py
-        dataset = h5py.File('num_chan_local_graph_{}.hdf'.format(graph), 'w')
-        dataset['data'] = num_chan_local_graph
-        dataset.close()
+            # save the number of channels in local graph for building the LGG model in utils.py
+            dataset = h5py.File('num_chan_local_graph_{}.hdf'.format(graph), 'w')
+            dataset['data'] = num_chan_local_graph
+            dataset.close()
         return data[:, idx, :]
 
     def hci_reorder_channel(self, data, graph):
