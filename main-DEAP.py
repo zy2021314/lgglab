@@ -82,6 +82,7 @@ if __name__ == '__main__':
     cv = CrossValidation(args)
     seed_all(args.random_seed)
     cv.n_fold_CV(subject=sub_to_run, shuffle=True, fold=10)
+    #norm_train就是不使用十折交叉验证，indepent_train就是使用所有数据来跑模型，只写了读取数据的部分
     #cv.indepent_train(subject=sub_to_run)
     #cv.norm_train(sub_to_run)
     #在cv中添加函数，构造新的训练方式
