@@ -189,6 +189,7 @@ class PrepareData:
 
                 data = np.array(data)
                 data = data[:, :, :256]
+                #
                 label = [j for i in label for j in i]
                 label = [int(i) for i in label]
                 label = np.array(label)
@@ -201,6 +202,76 @@ class PrepareData:
                     overlap=self.args.overlap, sampling_rate=self.args.sampling_rate
                 )
                 self.save(data, label, sub)
+        elif self.args.dataset == 'SHOP':
+            # label == Disike or Like
+            # 数据集特点：一个人数量不一定为42个，命名规范为：name_序号,data和label的命名规范一致
+            # 方法1：在遇到该实验为空的时候跳过
+            # 方法2，根据命名规范，设置不同的list
+            # 由于两个都为乱序，所以我的思路为，提取实验者姓名，提取实验编号，作为变量
+            # for循环遍历文件名，如果开头几个字符等于姓名，则继续操作（会出错）,加一个限制条件， and 整个文件名小于开头字符+6，即可
+            # 思考，能不能乱序
+            base_datapath = 'Data-EEG-25-users-Neuromarketing/25-users'
+            base_labelpath = 'Data-EEG-25-users-Neuromarketing/labels'
+            data_name = os.listdir('Data-EEG-25-users-Neuromarketing/25-users')
+            label_name = os.listdir('Data-EEG-25-users-Neuromarketing/labels')
+            data_name.sort()
+            label_name.sort()
+            names = []
+            nums = []
+            for i in range(len(data_name)):
+                name = re.search("(.*?)(\d*.txt)", data_name[i]).group(1)
+                num = re.search("(.*?)(\d*.txt)", data_name[i]).group(2)
+                names.append(name)
+                nums.append(num)
+            #25个人的名字
+            sub_name = list(set(names))
+            sub_name.sort()
+            for sub in subject_list:
+                flag = 0
+                data = []
+                label = []
+                for i in range(len(data_name)):
+                    # 获得名字长度
+                    if flag == 42:
+                        break
+                    name_len = len(sub_name[sub])
+                    # 因为名字有这样子的Gautam_  | Gautam_123_ 所以加上第二个限制条件
+                    if data_name[i][:name_len] == sub_name[sub] and len(data_name[i]) <= (name_len+7):
+                        #读取数据 和 标签
+                        flag = flag + 1
+                        data_path = os.path.join(base_datapath, data_name[i])
+                        label_path = os.path.join(base_labelpath, label_name[i])
+                        #label_path = "Data-EEG-25-users-Neuromarketing/labels/" + label_name[i]
+                        data.append(np.loadtxt(data_path).T)
+                        f = open(label_path)
+                        label_str = f.read()
+                        if label_str == 'Like':
+                            label.append(int(1))
+                        #够不严谨的，dislike都能拼错
+                        elif label_str == 'Disike':
+                            label.append(int(0))
+
+
+                data = np.array(data)
+                # data = data[:, :, :256]
+                # label = [j for i in label for j in i]
+                label = [int(i) for i in label]
+                label = np.array(label)
+                if expand:
+                    data = np.expand_dims(data, axis=-3)
+                data, label = self.split(
+                    data=data,
+                    label=label,
+                    segment_length=self.args.segment,
+                    overlap=self.args.overlap, sampling_rate=self.args.sampling_rate
+                )
+                self.save(data, label, sub)
+
+
+
+
+
+
 
 
 

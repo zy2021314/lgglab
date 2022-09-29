@@ -15,19 +15,20 @@ if __name__ == '__main__':
     # pd = PrepareData(args)
     # pd.run(sub_to_run, split=True, expand=True)
     """
-    parser.add_argument('--dataset', type=str, default='LAB', choices=['DEAP', 'HCI', 'LAB', 'SEED'])
-    parser.add_argument('--data-path', type=str, default='dataset_man/', choices=['Sessions/', 'data_preprocessed_python/', 'dataset_man/'])
-    parser.add_argument('--input-shape', type=tuple, default=(1, 14, 128))
+    parser.add_argument('--dataset', type=str, default='SHOP', choices=['DEAP', 'HCI', 'LAB', 'SEED', 'SHOP'])
+    parser.add_argument('--data-path', type=str, default='dataset_man/', choices=['Sessions/', 'data_preprocessed_python/', 'dataset_man/', 'Data-EEG-25-users-Neuromarketing/'])
+    parser.add_argument('--input-shape', type=tuple, default=(1, 14, 512))
     ################## 更改数据时需要将上面三者都更改##########
 
-    #定义人数
-    parser.add_argument('--subjects', type=int, default=1)
+    #定义人数,shop25人
+
+    parser.add_argument('--subjects', type=int, default=25)
 
     parser.add_argument('--num-class', type=int, default=2, choices=[2, 3, 4])
     parser.add_argument('--label-type', type=str, default='V', choices=['A', 'V', 'D', 'L'])
 
     ##########分片的参数################################
-    parser.add_argument('--segment', type=int, default=1)#每一片的时间长短
+    parser.add_argument('--segment', type=int, default=4)#每一片的时间长短
     parser.add_argument('--overlap', type=float, default=0)
     parser.add_argument('--sampling-rate', type=int, default=128)
     parser.add_argument('--scale-coefficient', type=float, default=1)
@@ -36,7 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('--data-format', type=str, default='eeg')
     ######## Training Process ########
     parser.add_argument('--random-seed', type=int, default=7)
-    parser.add_argument('--max-epoch', type=int, default=200)
+    parser.add_argument('--max-epoch', type=int, default=200)#max_epoch表示训练的最大epoch
     #patient，表示，第一阶段训练时，能忍受的训练集精度为1的次数
     #max-epoch-cmb表示，第二阶段训练的epoch
     parser.add_argument('--patient', type=int, default=20)
@@ -53,7 +54,7 @@ if __name__ == '__main__':
     parser.add_argument('--load-path', default='./save/max-acc.pth')
     parser.add_argument('--load-path-final', default='./save/final_model.pth')
     #################################################################
-    parser.add_argument('--gpu', default='0')
+    parser.add_argument('--gpu', default='2')
     parser.add_argument('--save-model', type=bool, default=True)
     ######## Model Parameters ########
     parser.add_argument('--model', type=str, default='VIT')
@@ -77,12 +78,12 @@ if __name__ == '__main__':
             sub_to_run = [i+1 for i in sub_to_run]
 
 
-    pd = PrepareData(args)
-    pd.run(sub_to_run, split=True, expand=True)
+    # pd = PrepareData(args)
+    # pd.run(sub_to_run, split=True, expand=True)
     cv = CrossValidation(args)
     seed_all(args.random_seed)
-    cv.n_fold_CV(subject=sub_to_run, shuffle=True, fold=10)
+    #cv.n_fold_CV(subject=sub_to_run, shuffle=True, fold=5)
     #norm_train就是不使用十折交叉验证，indepent_train就是使用所有数据来跑模型，只写了读取数据的部分
-    #cv.indepent_train(subject=sub_to_run)
+    cv.indepent_train(subject=sub_to_run)
     #cv.norm_train(sub_to_run)
     #在cv中添加函数，构造新的训练方式

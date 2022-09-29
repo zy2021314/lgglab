@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-#注意力block
+
 class ChannelAttention(nn.Module):
     def __init__(self, in_channel, ratio=2):
         super(ChannelAttention, self).__init__()

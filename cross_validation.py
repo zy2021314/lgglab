@@ -17,6 +17,7 @@ ROOT = os.getcwd()
 交叉验证
 """
 
+
 class CrossValidation:
     def __init__(self, args):
         self.args = args
@@ -64,13 +65,13 @@ class CrossValidation:
 
     def prepare_data(self, idx_train, idx_test, data, label):
 
-        #只拿其中设置的数据进行划分
+        # 只拿其中设置的数据进行划分
         data_train = data[idx_train]
         label_train = label[idx_train]
         data_test = data[idx_test]
         label_test = label[idx_test]
 
-        if self.args.dataset == 'LAB' or self.args.dataset == 'DEAP':
+        if self.args.dataset == 'LAB' or self.args.dataset == 'DEAP' or self.args.dataset == 'SHOP':
             """
             For DEAP we want to do trial-wise 10-fold, so the idx_train/idx_test is for
             trials.
@@ -83,7 +84,7 @@ class CrossValidation:
             (trial, segment, 1, chan, datapopoint)到(trial*segments, 1, chan, datapopoint)
             """
 
-            #（40,15）-》（40*15）
+            # （40,15）-》（40*15）
             data_train = np.concatenate(data_train, axis=0)
             label_train = np.concatenate(label_train, axis=0)
             if len(data_test.shape) > 4:
@@ -197,27 +198,26 @@ class CrossValidation:
         tvf = []  # total validation f1
 
         for sub in subject:
-            #读取，hdf文件
+            # 读取，hdf文件
             data, label = self.load_per_subject(sub)
 
             va_val = Averager()
             vf_val = Averager()
             preds, acts = [], []
-            #创建一个kf变量
+            # 创建一个kf变量
             kf = KFold(n_splits=fold, shuffle=shuffle)
 
-            #split(X, y=None, groups=None)：将数据集划分成训练集和测试集，返回索引生成器
+            # split(X, y=None, groups=None)：将数据集划分成训练集和测试集，返回索引生成器
 
             for idx_fold, (idx_train, idx_test) in enumerate(kf.split(data)):
                 print('Outer loop: {}-fold-CV Fold:{}'.format(fold, idx_fold))
-                #准备数据,一个人是（40,15,1,34，512），train：540，test：60.labels：（60,1）
-                if self.args.dataset == 'DEAP' or 'LAB':
+                # 准备数据,一个人是（40,15,1,34，512），train：540，test：60.labels：（60,1）
+                if self.args.dataset == 'DEAP' or 'LAB' or 'SHOP':
                     data_train, label_train, data_test, label_test = self.prepare_data(
                         idx_train=idx_train, idx_test=idx_test, data=data, label=label)
                 elif self.args.dataset == 'HCI':
                     data_train, label_train, data_test, label_test = self.hci_prepare_data(
                         idx_train=idx_train, idx_test=idx_test, data=data, label=label)
-
 
                 if self.args.reproduce:
                     # to reproduce the reported ACC来重现报告的ACC
@@ -229,7 +229,7 @@ class CrossValidation:
                 else:
                     # to train new models
                     acc_val, f1_val = self.first_stage(data=data_train, label=label_train,
-                                                      subject=sub, fold=idx_fold)
+                                                       subject=sub, fold=idx_fold)
 
                     combine_train(args=self.args,
                                   data=data_train, label=label_train,
@@ -251,8 +251,6 @@ class CrossValidation:
             result = '{},{}'.format(tta[-1], f1)
             self.log2txt(result)
 
-
-
         # prepare final report
         tta = np.array(tta)
         ttf = np.array(ttf)
@@ -269,9 +267,8 @@ class CrossValidation:
         print('Final: val mean ACC:{} std:{}'.format(mACC_val, std_val))
         print('Final: val mean F1:{}'.format(mF1_val))
         results = 'test mAcc={} mF1={} val mAcc={} val F1={}'.format(mACC,
-        mF1, mACC_val, mF1_val)
+                                                                     mF1, mACC_val, mF1_val)
         self.log2txt(results)
-
 
     def first_stage(self, data, label, subject, fold):
         """
@@ -298,7 +295,7 @@ class CrossValidation:
         maxAcc = 0.0
         for i, (idx_train, idx_val) in enumerate(kf.split(data)):
             print('Inner 3-fold-CV Fold:{}'.format(i))
-            #data：540，train：360，val：180
+            # data：540，train：360，val：180
             data_train, label_train = data[idx_train], label[idx_train]
             data_val, label_val = data[idx_val], label[idx_val]
             acc_val, F1_val = train(args=self.args,
@@ -336,33 +333,26 @@ class CrossValidation:
         file.write(str(content) + '\n')
         file.close()
 
-    def indepent_train(self,subject=[0]):
+    def indepent_train(self, subject=[0]):
 
+        test_sub = input("input")
+        test_sub = int(test_sub)
+        subject = np.delete(subject, test_sub)
         data = []
         label = []
         for sub in subject:
             data_one, label_one = self.load_per_subject(sub)
             data.append(data_one)
             label.append(label_one)
-        #（32,40,15，1,40,512）
+        # （32,40,15，1,40,512）
         #
-        data = np.array(data)
-        label = np.array(label)
-        # Train and evaluate the model subject by subject
-        tta = []  # total test accuracy
-        tva = []  # total validation accuracy
-        ttf = []  # total test f1
-        tvf = []  # total validation f1
-        va_val = Averager()
-        vf_val = Averager()
-        preds, acts = [], []
-        # 创建一个kf变量
-
+        data_train = np.concatenate(data, axis=0)
+        label_train = np.concatenate(label, axis=0)
+        data_test, label_test = self.load_per_subject(test_sub)
         # split(X, y=None, groups=None)：将数据集划分成训练集和测试集，返回索引生成器
-        data_train, data_test, label_train, label_test = train_test_split(data, label, test_size=0.2, shuffle=True,
-                                                                          random_state=10)
+        #data_train, data_test, label_train, label_test = train_test_split(data, label, test_size=0.04, shuffle=False)
 
-        if self.args.dataset == 'Att' or self.args.dataset == 'DEAP':
+        if self.args.dataset == 'Att' or self.args.dataset == 'DEAP' or self.args.dataset == 'SHOP':
             """
             For DEAP we want to do trial-wise 10-fold, so the idx_train/idx_test is for
             trials.
@@ -387,42 +377,83 @@ class CrossValidation:
                 data_test = np.concatenate(data_test, axis=0)
                 label_test = np.concatenate(label_test, axis=0)
         data_train, data_test = self.normalize(train=data_train, test=data_test)
+        data_train, data_val, label_train, label_val = train_test_split(data_train, label_train, test_size=0.2,
+                                                                        shuffle=True,
+                                                                        random_state=10
+                                                                        )
         # Prepare the data format for training the model using PyTorch
         data_train = torch.from_numpy(data_train).float()
         label_train = torch.from_numpy(label_train).long()
-
         data_test = torch.from_numpy(data_test).float()
         label_test = torch.from_numpy(label_test).long()
+        data_val = torch.from_numpy(data_val).float()
+        label_val = torch.from_numpy(label_val).long()
+
+        args = self.args
+        train_loader = get_dataloader(data_train, label_train, args.batch_size)
+        val_loader = get_dataloader(data_val, label_val, args.batch_size)
+
+        model = get_model(args)
+        if CUDA:
+            model = model.cuda()
+
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+
+        if args.LS:
+            # 标签平滑
+            loss_fn = LabelSmoothing(args.LS_rate)
+        else:
+            loss_fn = nn.CrossEntropyLoss()
+
+        for epoch in range(1, args.max_epoch + 1):
+            # 每个epoch训练
+            loss_train, pred_train, act_train = train_one_epoch(
+                data_loader=train_loader, net=model, loss_fn=loss_fn, optimizer=optimizer)
+            #
+            acc_train, f1_train, _ = get_metrics(y_pred=pred_train, y_true=act_train)
+            print('epoch {}, loss={:.4f} acc={:.4f} f1={:.4f}'
+                  .format(epoch, loss_train, acc_train, f1_train))
+
+            loss_val, pred_val, act_val = predict(
+                data_loader=val_loader, net=model, loss_fn=loss_fn
+            )
+            acc_val, f1_val, _ = get_metrics(y_pred=pred_val, y_true=act_val)
+            print('epoch {}, val, loss={:.4f} acc={:.4f} f1={:.4f}'.
+                  format(epoch, loss_val, acc_val, f1_val))
+
+        acc_test, pred, act = test(args=self.args, data=data_test, label=label_test,
+                                   reproduce=self.args.reproduce,
+                                   subject=sub, fold=0)
 
 
-
-    def norm_train(self, subject=[0]):
-        """
+def norm_train(self, subject=[0]):
+    """
         this function achieves n-fold cross-validation
         该函数实现了n次交叉验证
         :param subject: how many subject to load
         :param fold: how many fold
         """
-        # Train and evaluate the model subject by subject
-        tta = []  # total test accuracy
-        tva = []  # total validation accuracy
-        ttf = []  # total test f1
-        tvf = []  # total validation f1
+    # Train and evaluate the model subject by subject
+    tta = []  # total test accuracy
+    tva = []  # total validation accuracy
+    ttf = []  # total test f1
+    tvf = []  # total validation f1
 
-        for sub in subject:
-            #读取，hdf文件
-            data, label = self.load_per_subject(sub)
+    for sub in subject:
+        # 读取，hdf文件
+        data, label = self.load_per_subject(sub)
 
-            va_val = Averager()
-            vf_val = Averager()
-            preds, acts = [], []
-            #创建一个kf变量
+        va_val = Averager()
+        vf_val = Averager()
+        preds, acts = [], []
+        # 创建一个kf变量
 
-            #split(X, y=None, groups=None)：将数据集划分成训练集和测试集，返回索引生成器
-            data_train, data_test, label_train,  label_test = train_test_split(data, label, test_size=0.2, shuffle=True, random_state=10)
+        # split(X, y=None, groups=None)：将数据集划分成训练集和测试集，返回索引生成器
+        data_train, data_test, label_train, label_test = train_test_split(data, label, test_size=0.2, shuffle=True,
+                                                                          random_state=10)
 
-            if self.args.dataset == 'Att' or self.args.dataset == 'DEAP':
-                """
+        if self.args.dataset == 'Att' or self.args.dataset == 'DEAP':
+            """
                 For DEAP we want to do trial-wise 10-fold, so the idx_train/idx_test is for
                 trials.
                 data: (trial, segment, 1, chan, datapoint)
@@ -434,78 +465,72 @@ class CrossValidation:
                 (trial, segment, 1, chan, datapopoint)到(trial*segments, 1, chan, datapopoint)
                 """
 
-                # （40,15）-》（40*15）
-                data_train = np.concatenate(data_train, axis=0)
-                label_train = np.concatenate(label_train, axis=0)
-                if len(data_test.shape) > 4:
-                    """
+            # （40,15）-》（40*15）
+            data_train = np.concatenate(data_train, axis=0)
+            label_train = np.concatenate(label_train, axis=0)
+            if len(data_test.shape) > 4:
+                """
                     When leave one trial out is conducted, the test data will be (segments, 1, chan, datapoint), hence,
                     no need to concatenate the first dimension to get trial*segments
                     当进行一次试验时，测试数据为(segments, 1, chan, datpoint)，因此，不需要连接第一个维度来获得试验*段
                     """
-                    data_test = np.concatenate(data_test, axis=0)
-                    label_test = np.concatenate(label_test, axis=0)
-            data_train, data_test = self.normalize(train=data_train, test=data_test)
-            # Prepare the data format for training the model using PyTorch
-            data_train = torch.from_numpy(data_train).float()
-            label_train = torch.from_numpy(label_train).long()
+                data_test = np.concatenate(data_test, axis=0)
+                label_test = np.concatenate(label_test, axis=0)
+        data_train, data_test = self.normalize(train=data_train, test=data_test)
+        # Prepare the data format for training the model using PyTorch
+        data_train = torch.from_numpy(data_train).float()
+        label_train = torch.from_numpy(label_train).long()
 
-            data_test = torch.from_numpy(data_test).float()
-            label_test = torch.from_numpy(label_test).long()
+        data_test = torch.from_numpy(data_test).float()
+        label_test = torch.from_numpy(label_test).long()
 
-            if self.args.reproduce:
-                # to reproduce the reported ACC来重现报告的ACC
-                acc_test, pred, act = test(args=self.args, data=data_test, label=label_test,
-                                           reproduce=self.args.reproduce,
-                                           subject=sub, fold=F)
-                acc_val = 0
-                f1_val = 0
-            else:
-                # to train new models
-                acc_val, f1_val = self.first_stage(data=data_train, label=label_train,
-                                                  subject=sub, fold="F")
+        if self.args.reproduce:
+            # to reproduce the reported ACC来重现报告的ACC
+            acc_test, pred, act = test(args=self.args, data=data_test, label=label_test,
+                                       reproduce=self.args.reproduce,
+                                       subject=sub, fold=F)
+            acc_val = 0
+            f1_val = 0
+        else:
+            # to train new models
+            acc_val, f1_val = self.first_stage(data=data_train, label=label_train,
+                                               subject=sub, fold="F")
 
-                combine_train(args=self.args,
-                              data=data_train, label=label_train,
-                              subject=sub, fold="F", target_acc=1)
+            combine_train(args=self.args,
+                          data=data_train, label=label_train,
+                          subject=sub, fold="F", target_acc=1)
 
-                acc_test, pred, act = test(args=self.args, data=data_test, label=label_test,
-                                           reproduce=self.args.reproduce,
-                                           subject=sub, fold="F")
-                va_val.add(acc_val)
-                vf_val.add(f1_val)
-                preds.extend(pred)
-                acts.extend(act)
+            acc_test, pred, act = test(args=self.args, data=data_test, label=label_test,
+                                       reproduce=self.args.reproduce,
+                                       subject=sub, fold="F")
+            va_val.add(acc_val)
+            vf_val.add(f1_val)
+            preds.extend(pred)
+            acts.extend(act)
 
-            tva.append(va_val.item())
-            tvf.append(vf_val.item())
-            acc, f1, _ = get_metrics(y_pred=preds, y_true=acts)
-            tta.append(acc)
-            ttf.append(f1)
-            result = '{},{}'.format(tta[-1], f1)
-            self.log2txt(result)
+        tva.append(va_val.item())
+        tvf.append(vf_val.item())
+        acc, f1, _ = get_metrics(y_pred=preds, y_true=acts)
+        tta.append(acc)
+        ttf.append(f1)
+        result = '{},{}'.format(tta[-1], f1)
+        self.log2txt(result)
 
+    # prepare final report
+    tta = np.array(tta)
+    ttf = np.array(ttf)
+    tva = np.array(tva)
+    tvf = np.array(tvf)
+    mACC = np.mean(tta)
+    mF1 = np.mean(ttf)
+    std = np.std(tta)
+    mACC_val = np.mean(tva)
+    std_val = np.std(tva)
+    mF1_val = np.mean(tvf)
 
-
-        # prepare final report
-        tta = np.array(tta)
-        ttf = np.array(ttf)
-        tva = np.array(tva)
-        tvf = np.array(tvf)
-        mACC = np.mean(tta)
-        mF1 = np.mean(ttf)
-        std = np.std(tta)
-        mACC_val = np.mean(tva)
-        std_val = np.std(tva)
-        mF1_val = np.mean(tvf)
-
-        print('Final: test mean ACC:{} std:{}'.format(mACC, std))
-        print('Final: val mean ACC:{} std:{}'.format(mACC_val, std_val))
-        print('Final: val mean F1:{}'.format(mF1_val))
-        results = 'test mAcc={} mF1={} val mAcc={} val F1={}'.format(mACC,
-        mF1, mACC_val, mF1_val)
-        self.log2txt(results)
-
-
-
-
+    print('Final: test mean ACC:{} std:{}'.format(mACC, std))
+    print('Final: val mean ACC:{} std:{}'.format(mACC_val, std_val))
+    print('Final: val mean F1:{}'.format(mF1_val))
+    results = 'test mAcc={} mF1={} val mAcc={} val F1={}'.format(mACC,
+                                                                 mF1, mACC_val, mF1_val)
+    self.log2txt(results)

@@ -91,8 +91,9 @@ def get_model(args):
         if args.dataset == 'DEAP' or args.dataset == 'HCI':
             idx_local_graph = list(np.array(h5py.File('num_chan_local_graph_{}.hdf'.format(args.graph_type), 'r')['data']))
             channels = sum(idx_local_graph)
-        elif args.dataset == 'LAB':
+        elif args.dataset == 'LAB' or args.dataset == 'SHOP':
             channels = 14
+
 
         model = ViT(
             num_classes=args.num_class,
